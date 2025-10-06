@@ -17,7 +17,7 @@ load_dotenv()
 
 # Load configuration
 config = get_config()
-last_status = normal
+last_status = "normal"
 
 # Helper function to get IST timestamp
 def get_ist_timestamp():
