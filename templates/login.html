@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card animate__animated animate__fadeIn">
+        <div class="login-header">
+            <img src="{{ url_for('static', filename='images/battery-icon.png') }}" alt="BMS Icon">
+            <h1>Battery Management System</h1>
+        </div>
+        
+        {% if error %}
+        <div class="alert alert-error animate__animated animate__shakeX">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" class="login-form">
+            <div class="form-group">
+                <label for="username"><i class="fas fa-user"></i> Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password"><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn-login">Login</button>
+        </form>
+        
+        <div class="login-footer">
+          <p>Don't have an account? <a href="{{ url_for('contact_admin') }}">Contact Admin</a></p>
+
+            <!-- <p>Don't have an account? <a href="mailto:admin@bms.com">Contact Admin</a></p>
+          <p>Don't have an account? <a href="#">Contact Admin</a></p> -->
+        </div>
+    </div>
+    
+    <div class="login-bg-animation">
+        <div class="circle circle-1"></div>
+        <div class="circle circle-2"></div>
+        <div class="circle circle-3"></div>
+    </div>
+</div>
+{% endblock %}

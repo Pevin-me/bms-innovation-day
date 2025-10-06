@@ -1,0 +1,659 @@
+{% extends "base.html" %} {% block content %}
+<div class="dashboard-container">
+	<aside class="sidebar">
+		<div class="sidebar-header">
+			<img
+				src="{{ url_for('static', filename='images/battery-icon.png') }}"
+				alt="BMS Logo"
+			/>
+			<h2>BMS Dashboard</h2>
+		</div>
+
+		<nav class="sidebar-nav">
+			<ul>
+				<li class="active">
+					<a href="#"><i class="fas fa-home"></i> Dashboard</a>
+				</li>
+				<li>
+					<a href="{{ url_for('history') }}"
+						><i class="fas fa-history"></i> History</a
+					>
+				</li>
+				<li>
+					<a href="{{ url_for('contact_admin') }}"
+						><i class="fas fa-question-circle"></i> Need Help</a
+					>
+				</li>
+				<li>
+					<a href="{{ url_for('logout') }}"
+						><i class="fas fa-sign-out-alt"></i> Logout</a
+					>
+				</li>
+			</ul>
+		</nav>
+
+		<div class="sidebar-footer">
+			<div class="system-status">
+				<div
+					class="status-indicator {% if data and data.status == 'normal' %}status-good{% else %}status-warning{% endif %}"
+				></div>
+				<span
+					>System Status: {% if data and data.status == 'normal'
+					%}Normal{% else %}Warning{% endif %}</span
+				>
+			</div>
+		</div>
+	</aside>
+
+	<main class="main-content">
+		<header class="main-header">
+			<h1>Welcome, {{ username }}</h1>
+			<div class="header-actions">
+				<div class="esp32-connection-status">
+					<div class="connection-indicator" id="esp32Indicator" title="ESP32 Disconnected">
+						<i class="fas fa-circle"></i>
+					</div>
+					<span id="connectionStatus">ESP32</span>
+				</div>
+				<div class="mode-indicator" id="ecoModeIndicator" style="display: none;">
+					<i class="fas fa-leaf"></i>
+					<span>Eco Mode</span>
+				</div>
+				<div class="mode-indicator thermal" id="thermalProtectionIndicator" style="display: none;">
+					<i class="fas fa-shield-alt"></i>
+					<span>Thermal Protection</span>
+				</div>
+				<div class="last-update">
+					<i class="fas fa-clock"></i>
+					<span id="lastUpdateTime"></span>
+				</div>
+			</div>
+		</header>
+		<div
+			id="persistentNotificationContainer"
+			class="persistent-container"
+		></div>
+
+		<div class="dashboard-grid">
+			<!-- Voltage Card -->
+			<div class="metric-card animate__animated animate__fadeInUp">
+				<div class="metric-header">
+					<h3>Voltage</h3>
+					<i class="fas fa-bolt"></i>
+				</div>
+				<div class="metric-value" id="voltageValue">
+					{% if data %} {{ '%.2f' % data.voltage }} V {% else %} N/A
+					{% endif %}
+				</div>
+				<div class="metric-footer">
+					<span
+						class="status {% if data and data.voltage >= 7.0 %}good{% else %}bad{% endif %}"
+						id="voltageStatus"
+					>
+						{% if data and data.voltage >= 7.0 %} Normal {% else %}
+						Warning {% endif %}
+					</span>
+				</div>
+			</div>
+
+			<!-- Current Card -->
+			<div
+				class="metric-card animate__animated animate__fadeInUp"
+				style="animation-delay: 0.1s"
+			>
+				<div class="metric-header">
+					<h3>Current</h3>
+					<i class="fas fa-tachometer-alt"></i>
+				</div>
+				<div class="metric-value" id="currentValue">
+					{% if data %} {{ '%.2f' % data.current }} A {% else %} N/A
+					{% endif %}
+				</div>
+				<div class="metric-footer">
+					<span
+						class="status {% if data and data.current <= 2.0 %}good{% else %}bad{% endif %}"
+						id="currentStatus"
+					>
+						{% if data and data.current <= 2.0 %} Normal {% else %}
+						Warning {% endif %}
+					</span>
+				</div>
+			</div>
+
+			<!-- Power Card -->
+			<div
+				class="metric-card animate__animated animate__fadeInUp"
+				style="animation-delay: 0.2s"
+			>
+				<div class="metric-header">
+					<h3>Power</h3>
+					<i class="fas fa-charging-station"></i>
+				</div>
+				<div class="metric-value" id="powerValue">
+					{% if data %} {{ '%.2f' % data.power }} W {% else %} N/A {%
+					endif %}
+				</div>
+				<div class="metric-footer">
+					<span class="status good">Normal</span>
+				</div>
+			</div>
+
+			<!-- Temperature Card -->
+			<div
+				class="metric-card animate__animated animate__fadeInUp"
+				style="animation-delay: 0.3s"
+			>
+				<div class="metric-header">
+					<h3>Temperature</h3>
+					<i class="fas fa-thermometer-half"></i>
+				</div>
+				<div class="metric-value" id="temperatureValue">
+					{% if data %} {{ '%.2f' % data.temperature }} °C {% else %}
+					N/A {% endif %}
+				</div>
+				<div class="metric-footer">
+					<span
+						class="status {% if data and data.temperature <= 40 %}good{% else %}bad{% endif %}"
+						id="tempStatus"
+					>
+						{% if data and data.temperature <= 40 %} Normal {% else
+						%} Warning {% endif %}
+					</span>
+				</div>
+			</div>
+
+			<!-- SOC Card -->
+			<div
+				class="metric-card animate__animated animate__fadeInUp"
+				style="animation-delay: 0.4s"
+			>
+				<div class="metric-header">
+					<h3>SOC</h3>
+					<i class="fas fa-battery-half"></i>
+				</div>
+				<div class="metric-value" id="socValue">
+					{% if data %} {{ '%.2f' % data.soc }} % {% else %} N/A {%
+					endif %}
+				</div>
+				<div class="metric-footer">
+					<span
+						class="status {% if data and data.soc >= 20 and data.soc <= 100 %}good{% else %}bad{% endif %}"
+						id="socStatus"
+					>
+						{% if data and data.soc >= 20 and data.soc <= 100 %}
+						Normal {% else %} Warning {% endif %}
+					</span>
+				</div>
+			</div>
+
+			<!-- Charts Section -->
+			<div class="chart-card animate__animated animate__fadeIn">
+				<div class="chart-header">
+					<h3>Voltage & Current Trends</h3>
+					<div class="time-selector">
+						<button class="active">1h</button>
+					</div>
+				</div>
+				<canvas id="combinedChart"></canvas>
+			</div>
+
+			<div
+				class="chart-card animate__animated animate__fadeIn"
+				style="animation-delay: 0.1s"
+			>
+				<div class="chart-header">
+					<h3>Temperature Trend</h3>
+					<div class="time-selector">
+						<button class="active">1h</button>
+					</div>
+				</div>
+				<canvas id="tempChart"></canvas>
+			</div>
+		</div>
+	</main>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+	// --- LIVE IST CLOCK ---
+	function updateISTTime() {
+		const now = new Date();
+		// Convert to IST (UTC+5:30)
+		const istOffset = 5.5 * 60; // IST offset in minutes
+		const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+		const ist = new Date(utc + istOffset * 60000);
+		const formatted =
+			ist.getFullYear() +
+			'-' +
+			String(ist.getMonth() + 1).padStart(2, '0') +
+			'-' +
+			String(ist.getDate()).padStart(2, '0') +
+			' ' +
+			String(ist.getHours()).padStart(2, '0') +
+			':' +
+			String(ist.getMinutes()).padStart(2, '0') +
+			':' +
+			String(ist.getSeconds()).padStart(2, '0');
+		document.getElementById('lastUpdateTime').textContent =
+			formatted + ' IST';
+	}
+	setInterval(updateISTTime, 1000);
+	updateISTTime();
+	// --- END LIVE IST CLOCK ---
+	let anomalyActive = false; // keeps track if an anomaly notification is already shown
+
+	document.addEventListener('DOMContentLoaded', function () {
+		// Initialize charts
+		const combinedCtx = document
+			.getElementById('combinedChart')
+			.getContext('2d');
+		const tempCtx = document.getElementById('tempChart').getContext('2d');
+
+		const combinedChart = new Chart(combinedCtx, {
+			type: 'line',
+			data: {
+				labels: Array.from({ length: 20 }, (_, i) => i + 1),
+				datasets: [
+					{
+						label: 'Voltage (V)',
+						data: Array(20).fill(0),
+						borderColor: 'rgba(75, 192, 192, 1)',
+						backgroundColor: 'rgba(75, 192, 192, 0.2)',
+						tension: 0.4,
+						yAxisID: 'y',
+					},
+					{
+						label: 'Current (A)',
+						data: Array(20).fill(0),
+						borderColor: 'rgba(54, 162, 235, 1)',
+						backgroundColor: 'rgba(54, 162, 235, 0.2)',
+						tension: 0.4,
+						yAxisID: 'y1',
+					},
+				],
+			},
+			options: {
+				responsive: true,
+				interaction: {
+					mode: 'index',
+					intersect: false,
+				},
+				scales: {
+					y: {
+						type: 'linear',
+						display: true,
+						position: 'left',
+						beginAtZero: true,
+						min: 0,
+						max: 16,
+						title: {
+							display: true,
+							text: 'Voltage (V)',
+						},
+					},
+					y1: {
+						type: 'linear',
+						display: true,
+						position: 'right',
+						beginAtZero: true,
+						min: 0,
+						title: {
+							display: true,
+							text: 'Current (A)',
+						},
+						grid: {
+							drawOnChartArea: false,
+						},
+					},
+				},
+				animation: {
+					duration: 1000,
+					easing: 'easeOutQuart',
+				},
+			},
+		});
+
+		const tempChart = new Chart(tempCtx, {
+			type: 'line',
+			data: {
+				labels: [],
+				datasets: [
+					{
+						label: 'Temperature (°C)',
+						data: [],
+						borderColor: 'rgba(255, 99, 132, 1)',
+						backgroundColor: 'rgba(255, 99, 132, 0.2)',
+						tension: 0.4,
+						fill: true,
+					},
+				],
+			},
+			options: {
+				responsive: true,
+				scales: {
+					y: {
+						beginAtZero: true,
+						min: 0,
+						max: 60,
+						title: {
+							display: true,
+							text: 'Temperature (°C)',
+						},
+					},
+				},
+				animation: {
+					duration: 1000,
+					easing: 'easeOutQuart',
+				},
+			},
+		});
+
+		// Socket.io for real-time updates
+		const socket = io();
+
+		socket.on('battery_update', function (data) {
+			document.getElementById('voltageValue').textContent =
+				parseFloat(data.voltage ?? data.battery_voltage ?? 0).toFixed(
+					2
+				) + ' V';
+			document.getElementById('currentValue').textContent =
+				parseFloat(data.current ?? 0).toFixed(2) + ' A';
+			document.getElementById('powerValue').textContent =
+				parseFloat(data.power ?? 0).toFixed(2) + ' W';
+			document.getElementById('temperatureValue').textContent =
+				parseFloat(data.temperature ?? 0).toFixed(2) + ' °C';
+
+			// Update ESP32 connection indicator
+			const esp32Indicator = document.getElementById('esp32Indicator');
+			if (esp32Indicator) {
+				if (data.source === 'esp32') {
+					esp32Indicator.className = 'connection-indicator connected';
+					esp32Indicator.title = 'ESP32 Connected';
+				} else {
+					esp32Indicator.className = 'connection-indicator disconnected';
+					esp32Indicator.title = 'ESP32 Disconnected';
+				}
+			}
+
+			// Update status indicators with correct thresholds
+			const voltageStatus = document.getElementById('voltageStatus');
+			const currentStatus = document.getElementById('currentStatus');
+			const tempStatus = document.getElementById('tempStatus');
+			const socStatus = document.getElementById('socStatus');
+
+			// Voltage: Warning if below 7V
+			if (voltageStatus) {
+				if (data.voltage >= 7.0) {
+					voltageStatus.className = 'status good';
+					voltageStatus.textContent = 'Normal';
+				} else {
+					voltageStatus.className = 'status bad';
+					voltageStatus.textContent = 'Warning';
+				}
+			}
+
+			// Current: Warning if above 2A
+			if (currentStatus) {
+				if (data.current <= 2.0) {
+					currentStatus.className = 'status good';
+					currentStatus.textContent = 'Normal';
+				} else {
+					currentStatus.className = 'status bad';
+					currentStatus.textContent = 'Warning';
+				}
+			}
+
+			// Temperature: Warning if above 40°C
+			if (tempStatus) {
+				if (data.temperature <= 40) {
+					tempStatus.className = 'status good';
+					tempStatus.textContent = 'Normal';
+				} else {
+					tempStatus.className = 'status bad';
+					tempStatus.textContent = 'Warning';
+				}
+			}
+
+			// SOC: Warning if below 20%
+			document.getElementById('socValue').textContent =
+				parseFloat(data.soc ?? 0).toFixed(2) + ' %';
+
+			if (socStatus) {
+				if ((data.soc ?? 0) >= 20 && (data.soc ?? 0) <= 100) {
+					socStatus.className = 'status good';
+					socStatus.textContent = 'Normal';
+				} else {
+					socStatus.className = 'status bad';
+					socStatus.textContent = 'Warning';
+				}
+			}
+
+			// Eco Mode: Enabled when SOC drops below 35%
+			const ecoModeIndicator = document.getElementById('ecoModeIndicator');
+			if (ecoModeIndicator) {
+				if (data.soc < 35 && data.soc > 0) {
+					ecoModeIndicator.style.display = 'flex';
+				} else {
+					ecoModeIndicator.style.display = 'none';
+				}
+			}
+
+			// Thermal Protection: Enabled when temperature exceeds 40°C
+			const thermalProtectionIndicator = document.getElementById('thermalProtectionIndicator');
+			if (thermalProtectionIndicator) {
+				if (data.temperature > 40) {
+					thermalProtectionIndicator.style.display = 'flex';
+				} else {
+					thermalProtectionIndicator.style.display = 'none';
+				}
+			}
+
+			const persistentContainer = document.getElementById(
+				'persistentNotificationContainer'
+			);
+
+			if (data.status !== 'normal') {
+				if (!anomalyActive) {
+					const notification = document.createElement('div');
+					notification.className =
+						'notification persistent warning animate__animated animate__fadeInDown';
+					notification.innerHTML = `
+                        <div class="notification-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="notification-content">
+                            <p>⚠️ Anomaly detected: ${data.status.replace(
+								'_',
+								' '
+							)}</p>
+                            <small>${data.timestamp}</small>
+                        </div>
+                        <button class="notification-close" onclick="this.parentElement.remove(); anomalyActive = false;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+					persistentContainer.appendChild(notification);
+					anomalyActive = true;
+				}
+			} else {
+				persistentContainer.innerHTML = '';
+				anomalyActive = false;
+			}
+
+			// Add data to charts
+			addChartData(combinedChart, [data.voltage, data.current]);
+			addChartData(tempChart, [data.temperature]);
+		});
+
+		socket.on('notification', function (notification) {
+			showNotification(notification.message, notification.level);
+		});
+
+		function addChartData(chart, newData) {
+			if (chart.data.datasets.length > 1) {
+				// For combined chart
+				chart.data.datasets[0].data.push(newData[0]);
+				chart.data.datasets[1].data.push(newData[1]);
+			} else {
+				// For single dataset charts
+				chart.data.datasets[0].data.push(newData[0]);
+			}
+
+			chart.data.labels.push('');
+
+			if (chart.data.datasets[0].data.length > 20) {
+				chart.data.datasets.forEach((dataset) => {
+					dataset.data.shift();
+				});
+				chart.data.labels.shift();
+			}
+
+			chart.update();
+		}
+
+		function showNotification(message, level = 'info') {
+			const container = document.getElementById('notificationContainer');
+			const notification = document.createElement('div');
+			notification.className = `notification animate__animated animate__fadeInRight ${level}`;
+			notification.innerHTML = `
+                <div class="notification-icon">
+                    ${
+						level === 'warning'
+							? '<i class="fas fa-exclamation-triangle"></i>'
+							: '<i class="fas fa-info-circle"></i>'
+					}
+                </div>
+                <div class="notification-content">
+                    <p>${message}</p>
+                    <small>Just now</small>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+			container.appendChild(notification);
+
+			setTimeout(() => {
+				notification.classList.add('animate__fadeOutRight');
+				setTimeout(() => notification.remove(), 500);
+			}, 5000);
+		}
+	});
+</script>
+
+<style>
+	/* Persistent notification container on top-right */
+	.persistent-container {
+		position: fixed;
+		bottom: 80px; /* leave space for header */
+		right: 20px;
+		z-index: 1000;
+		max-width: 320px;
+	}
+
+	/* Style the persistent notification */
+	.notification.persistent {
+		background-color: #f8d7da;
+		color: #721c24;
+		border: 1px solid #f5c6cb;
+		padding: 10px 14px;
+		border-radius: 8px;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		margin-bottom: 10px;
+		width: 100%;
+	}
+
+	/* ESP32 Connection Status Indicator */
+	.esp32-connection-status {
+		display: flex;
+		align-items: center;
+		background: white;
+		padding: 0.4rem 0.8rem;
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-sm);
+		font-size: 0.85rem;
+		margin-right: 1rem;
+	}
+
+	.connection-indicator {
+		display: flex;
+		align-items: center;
+		margin-right: 0.5rem;
+	}
+
+	.connection-indicator i {
+		font-size: 0.6rem;
+	}
+
+	.connection-indicator.connected i {
+		color: #10b981;
+		animation: pulse 2s infinite;
+	}
+
+	.connection-indicator.disconnected i {
+		color: #ef4444;
+	}
+
+	#connectionStatus {
+		font-weight: 500;
+		color: #374151;
+	}
+
+	/* Mode Indicators (Eco Mode & Thermal Protection) */
+	.mode-indicator {
+		display: flex;
+		align-items: center;
+		background: #d1fae5;
+		color: #065f46;
+		padding: 0.4rem 0.8rem;
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-sm);
+		font-size: 0.85rem;
+		margin-right: 1rem;
+		font-weight: 500;
+		border: 1px solid #6ee7b7;
+		animation: fadeIn 0.5s ease-in-out;
+	}
+
+	.mode-indicator.thermal {
+		background: #fed7aa;
+		color: #9a3412;
+		border: 1px solid #fdba74;
+	}
+
+	.mode-indicator i {
+		margin-right: 0.4rem;
+		font-size: 0.9rem;
+	}
+
+	.mode-indicator span {
+		font-weight: 600;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(-10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes pulse {
+		0% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
+</style>
+{% endblock %}
