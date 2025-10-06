@@ -41,12 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize sensor reader with configuration
-sensor_reader = BMSSensorReader(
-    serial_port=config.SERIAL_PORT,
-    baud_rate=config.SERIAL_BAUD_RATE
-)
-last_status = "normal"
+
 
 # Cache for last received data
 last_esp32_data = {
