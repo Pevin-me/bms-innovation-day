@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, Response
 from flask_socketio import SocketIO, emit
-from sensor_reader import BMSSensorReader
 import threading
 import time
 import sqlite3
